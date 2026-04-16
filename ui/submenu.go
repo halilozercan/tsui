@@ -38,9 +38,9 @@ const (
 func (v SubmenuItemVariant) color() lipgloss.Color {
 	switch v {
 	case SubmenuItemVariantAccent:
-		return Secondary
+		return CurrentTheme.Secondary
 	case SubmenuItemVariantDanger:
-		return Red
+		return CurrentTheme.Danger
 	}
 
 	return lipgloss.Color("")
@@ -50,6 +50,12 @@ func (v SubmenuItemVariant) color() lipgloss.Color {
 type LabeledSubmenuItem struct {
 	// The text to be displayed for this menu item.
 	Label string
+	// Optional single-character (or short) prefix rendered before the label
+	// using LabelPrefixColor as foreground. Rendered inside the row's style
+	// context so it doesn't break the selection background.
+	LabelPrefix string
+	// Foreground color for LabelPrefix. Only used when LabelPrefix is non-empty.
+	LabelPrefixColor lipgloss.Color
 	// An extra label shown on the right side. Will be shown in a muted color.
 	AdditionalLabel string
 	// Visual variant.
@@ -79,12 +85,12 @@ func (item *LabeledSubmenuItem) render(isSelected bool, isSubmenuOpen bool) stri
 		if isSelected {
 			if item.Variant == SubmenuItemVariantDanger {
 				colorStyle = colorStyle.
-					Background(Red).
-					Foreground(Black)
+					Background(CurrentTheme.Danger).
+					Foreground(CurrentTheme.FgOnDanger)
 			} else {
 				colorStyle = colorStyle.
-					Background(Secondary).
-					Foreground(Black)
+					Background(CurrentTheme.Secondary).
+					Foreground(CurrentTheme.FgOnSecondary)
 			}
 		} else if item.IsDim {
 			colorStyle = colorStyle.
@@ -110,9 +116,17 @@ func (item *LabeledSubmenuItem) render(isSelected bool, isSubmenuOpen bool) stri
 		PaddingLeft(2).
 		Width(submenuItemWidth)
 
+	label := item.Label
+	if item.LabelPrefix != "" {
+		label = colorStyle.Foreground(item.LabelPrefixColor).Render(item.LabelPrefix) +
+			colorStyle.Render(" "+item.Label)
+	} else {
+		label = colorStyle.Render(item.Label)
+	}
+
 	return outerStyle.Render(
 		RenderSplit(
-			colorStyle.Render(item.Label),
+			label,
 			colorStyle.
 				Faint(true).
 				Render(item.AdditionalLabel),
@@ -151,14 +165,14 @@ func (item *ToggleableSubmenuItem) render(isSelected bool, isSubmenuOpen bool) s
 
 			if item.Variant == SubmenuItemVariantDefault {
 				colorStyle = colorStyle.
-					Foreground(Secondary)
+					Foreground(CurrentTheme.Secondary)
 			}
 		}
 
 		if isSelected {
 			colorStyle = colorStyle.
-				Background(Secondary).
-				Foreground(Black)
+				Background(CurrentTheme.Secondary).
+				Foreground(CurrentTheme.FgOnSecondary)
 		} else if item.IsDim {
 			colorStyle = colorStyle.
 				Faint(true)
@@ -270,8 +284,8 @@ func (item *SettingSubmenuItem) render(isSelected bool, isSubmenuOpen bool) stri
 	if isSubmenuOpen {
 		if isSelected {
 			style = style.
-				Background(Secondary).
-				Foreground(Black)
+				Background(CurrentTheme.Secondary).
+				Foreground(CurrentTheme.FgOnSecondary)
 
 			selectedLabelStyle = selectedLabelStyle.
 				Bold(true)
@@ -281,11 +295,11 @@ func (item *SettingSubmenuItem) render(isSelected bool, isSubmenuOpen bool) stri
 			// This is kinda janky but hey, why not style the value by its contents?
 			switch selectedLabel {
 			case "Yes", "On":
-				color = Green
+				color = CurrentTheme.Success
 			case "No", "Off":
-				color = Red
+				color = CurrentTheme.Danger
 			default:
-				color = Blue
+				color = CurrentTheme.Info
 			}
 
 			selectedLabelStyle = selectedLabelStyle.
@@ -459,7 +473,7 @@ func (submenu *Submenu) Render(isSubmenuOpen bool, height int) string {
 	// Now we have a range of all menu items that can fit on screen, and we can create the
 	// final string.
 	overflow := lipgloss.NewStyle().
-		Background(DarkGray).
+		Background(CurrentTheme.Muted).
 		MarginLeft(2).
 		Render("...")
 

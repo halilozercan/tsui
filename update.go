@@ -117,6 +117,27 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case tea.KeyMsg:
+		// When a picker is open it captures nearly all input. Only the global
+		// quit keys (ctrl+c, q) still take effect, to preserve the app-wide
+		// exit invariant.
+		if m.picker != nil {
+			switch msg.String() {
+			case "ctrl+c", "q":
+				return m, tea.Quit
+			case "esc", "left", "h", "a":
+				m.picker = nil
+			case "up", "k", "w":
+				m.picker.cursorUp()
+			case "down", "j", "s":
+				m.picker.cursorDown()
+			case "enter", " ":
+				cmd := m.picker.commit
+				m.picker = nil
+				return m, cmd
+			}
+			return m, nil
+		}
+
 		switch msg.String() {
 		case "ctrl+c", "q":
 			return m, tea.Quit
@@ -198,6 +219,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Tick(ui.PoggersAnimationInterval, func(_ time.Time) tea.Msg {
 			return animationTickMsg{}
 		})
+
+	// Install a picker as the active input layer.
+	case openPickerMsg:
+		m.picker = msg.picker
 
 	// When our updaters return, update our model and refresh the menus.
 	case stateMsg:

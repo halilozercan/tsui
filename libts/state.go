@@ -65,6 +65,19 @@ func sortNodes(nodes []*ipnstate.PeerStatus) {
 	})
 }
 
+// Sort a list of node statuses with online peers first, then offline, alphabetical within groups.
+func sortNodesByStatus(nodes []*ipnstate.PeerStatus) {
+	slices.SortFunc(nodes, func(a, b *ipnstate.PeerStatus) int {
+		if a.Online != b.Online {
+			if a.Online {
+				return -1
+			}
+			return 1
+		}
+		return strings.Compare(PeerName(a), PeerName(b))
+	})
+}
+
 // Create an ipn.State from the string representation.
 //
 // This string representation comes from Tailscale's API and, because Go does not have
@@ -150,10 +163,10 @@ func GetState(ctx context.Context) (State, error) {
 	}
 
 	sortNodes(state.ExitNodes)
-	sortNodes(state.MyNodes)
-	sortNodes(state.TaggedNodes)
+	sortNodesByStatus(state.MyNodes)
+	sortNodesByStatus(state.TaggedNodes)
 	for key, value := range state.OwnedNodes {
-		sortNodes(value)
+		sortNodesByStatus(value)
 		state.OwnedNodeKeys = append(state.OwnedNodeKeys, key)
 	}
 	slices.Sort(state.OwnedNodeKeys)

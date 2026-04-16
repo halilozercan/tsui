@@ -9,6 +9,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/neuralinkcorp/tsui/config"
 	"github.com/neuralinkcorp/tsui/libts"
 	"github.com/neuralinkcorp/tsui/ui"
 	"github.com/neuralinkcorp/tsui/version"
@@ -83,6 +84,11 @@ type model struct {
 	// Frame counter for the loading animation. This is always running in the background,
 	// even if the animation is not visible.
 	animationT int
+
+	// Currently-open picker (e.g. theme selector), or nil if none is open.
+	// When non-nil, all keyboard input is routed to the picker and the main
+	// menu is visually frozen underneath.
+	picker *pickerState
 }
 
 // Initialize the application state.
@@ -133,13 +139,32 @@ func (m model) Init() tea.Cmd {
 
 func mainError(err error) {
 	text := lipgloss.NewStyle().
-		Foreground(ui.Red).
+		Foreground(ui.CurrentTheme.Danger).
 		Render(err.Error())
 	fmt.Fprintln(os.Stderr, text)
 	os.Exit(1)
 }
 
 func main() {
+	// Best-effort load of user themes before we handle any CLI subcommand so
+	// e.g. `tsui theme export <name>` can see user-registered themes too.
+	_ = config.LoadThemes()
+
+	if len(os.Args) > 1 {
+		handleSubcommand(os.Args[1:])
+		return
+	}
+
+	cfg, err := config.Load()
+	if err != nil {
+		mainError(err)
+	}
+	if err := cfg.Apply(); err != nil {
+		// Selected theme no longer exists or has invalid tokens. Fall back
+		// to default rather than failing to start.
+		_ = ui.ApplyTheme("default", nil)
+	}
+
 	m, err := initialModel()
 	if err != nil {
 		mainError(err)
@@ -162,14 +187,14 @@ func main() {
 
 	if m.latestVersion != "" && Version != "local" && m.latestVersion != Version {
 		text := lipgloss.NewStyle().
-			Foreground(ui.Yellow).
+			Foreground(ui.CurrentTheme.Warning).
 			Bold(true).
 			Render("Update available!")
 		text += lipgloss.NewStyle().
-			Foreground(ui.Yellow).
+			Foreground(ui.CurrentTheme.Warning).
 			Render(fmt.Sprintf(" To upgrade tsui from %s to %s, run:", Version, m.latestVersion))
 		text += lipgloss.NewStyle().
-			Foreground(ui.Blue).
+			Foreground(ui.CurrentTheme.Info).
 			Render("\n    " + version.UpdateCommand)
 		fmt.Println(text)
 	}

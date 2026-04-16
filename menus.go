@@ -8,6 +8,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/neuralinkcorp/tsui/clipboard"
+	"github.com/neuralinkcorp/tsui/config"
 	"github.com/neuralinkcorp/tsui/libts"
 	"github.com/neuralinkcorp/tsui/ui"
 	"tailscale.com/ipn"
@@ -38,9 +39,16 @@ func buildNetworkDevicesSubmenuSection(title string, peers []*ipnstate.PeerStatu
 				osName = "Linux"
 			}
 
+			statusColor := ui.CurrentTheme.Success
+			if !peer.Online {
+				statusColor = ui.CurrentTheme.Danger
+			}
+
 			items = append(items, &ui.LabeledSubmenuItem{
-				Label:           peerName,
-				AdditionalLabel: osName,
+				Label:            peerName,
+				LabelPrefix:      "●",
+				LabelPrefixColor: statusColor,
+				AdditionalLabel:  osName,
 				OnActivate: func() tea.Msg {
 					err := clipboard.WriteString(peer.TailscaleIPs[0].String())
 					if err != nil {
@@ -48,7 +56,7 @@ func buildNetworkDevicesSubmenuSection(title string, peers []*ipnstate.PeerStatu
 					}
 					return successMsg(fmt.Sprintf("Copied IP address of %s.", peerName))
 				},
-				IsDim: false,
+				IsDim: !peer.Online,
 			})
 		}
 	}
@@ -297,6 +305,32 @@ func (m *model) updateMenus() {
 						})
 					},
 				),
+
+				&ui.SpacerSubmenuItem{},
+				&ui.TitleSubmenuItem{Label: "Appearance"},
+
+				&ui.LabeledSubmenuItem{
+					Label:           "Theme",
+					AdditionalLabel: ui.CurrentThemeName,
+					OnActivate: func() tea.Msg {
+						return openPickerMsg{
+							picker: newPicker(
+								"Select Theme",
+								ui.ThemeNames(),
+								ui.CurrentThemeName,
+								func(name string) tea.Msg {
+									if name == ui.CurrentThemeName {
+										return nil
+									}
+									if err := config.SetTheme(name); err != nil {
+										return errorMsg(err)
+									}
+									return successMsg(fmt.Sprintf("Theme changed to %s.", name))
+								},
+							),
+						}
+					},
+				},
 
 				&ui.SpacerSubmenuItem{},
 				&ui.TitleSubmenuItem{Label: "Exit Nodes"},

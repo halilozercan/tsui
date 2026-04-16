@@ -23,11 +23,11 @@ func (i *AppmenuItem) render(isSelected bool, isAnySubmenuOpen bool) string {
 	if isSelected {
 		if isAnySubmenuOpen {
 			style = style.
-				Background(DarkGray)
+				Background(CurrentTheme.Muted)
 		} else {
 			style = style.
-				Background(Primary).
-				Foreground(Black)
+				Background(CurrentTheme.Primary).
+				Foreground(CurrentTheme.FgOnPrimary)
 		}
 	} else {
 		if isAnySubmenuOpen {
@@ -63,12 +63,22 @@ type Appmenu struct {
 
 // Render the menu to a string.
 func (appmenu *Appmenu) Render(height int) string {
-	if len(appmenu.items) == 0 {
+	mainCol, subCol := appmenu.RenderColumns(height)
+	if mainCol == "" && subCol == "" {
 		return ""
+	}
+	return lipgloss.JoinHorizontal(lipgloss.Top, mainCol, subCol)
+}
+
+// RenderColumns renders the main menu and the currently-focused submenu as
+// two separate strings, so callers can compose them with additional columns
+// (e.g. a picker opened on top of a submenu row).
+func (appmenu *Appmenu) RenderColumns(height int) (mainCol, subCol string) {
+	if len(appmenu.items) == 0 {
+		return "", ""
 	}
 
 	var s strings.Builder
-
 	for i, item := range appmenu.items {
 		if i > 0 {
 			s.WriteByte('\n')
@@ -76,10 +86,7 @@ func (appmenu *Appmenu) Render(height int) string {
 		s.WriteString(item.render(i == appmenu.cursor, appmenu.isOpen))
 	}
 
-	// Render the submenu to the right of the appmenu.
-	return lipgloss.JoinHorizontal(lipgloss.Top,
-		s.String(),
-		appmenu.items[appmenu.cursor].Submenu.Render(appmenu.isOpen, height))
+	return s.String(), appmenu.items[appmenu.cursor].Submenu.Render(appmenu.isOpen, height)
 }
 
 // Move the cursor to the next selectable item in the currently active menu.

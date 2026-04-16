@@ -54,7 +54,7 @@ func PoggersAnimationFrame(t int) string {
 
 			case 'T', 'S', 'U', 'I':
 				if char == targetLetter {
-					style = style.Foreground(Secondary)
+					style = style.Foreground(CurrentTheme.Secondary)
 				}
 
 				isWave := x == waveX || x == waveX+1 || x == waveX+2 || x == waveX+3 // Thick

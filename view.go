@@ -18,20 +18,20 @@ func renderStatusButton(backendState ipn.State, isUsingExitNode bool) string {
 	switch backendState {
 	case ipn.NeedsLogin:
 		return buttonStyle.
-			Background(ui.Yellow).
-			Foreground(ui.Black).
+			Background(ui.CurrentTheme.Warning).
+			Foreground(ui.CurrentTheme.FgOnWarning).
 			Render("Needs Login")
 
 	case ipn.NeedsMachineAuth:
 		return buttonStyle.
-			Background(ui.Yellow).
-			Foreground(ui.Black).
+			Background(ui.CurrentTheme.Warning).
+			Foreground(ui.CurrentTheme.FgOnWarning).
 			Render("Needs Machine Auth")
 
 	case ipn.Starting:
 		return buttonStyle.
-			Background(ui.Blue).
-			Foreground(ui.White).
+			Background(ui.CurrentTheme.Info).
+			Foreground(ui.CurrentTheme.FgOnInfo).
 			Render("Starting...")
 
 	case ipn.Running:
@@ -41,20 +41,20 @@ func renderStatusButton(backendState ipn.State, isUsingExitNode bool) string {
 		}
 
 		return buttonStyle.
-			Background(ui.Green).
-			Foreground(ui.Black).
+			Background(ui.CurrentTheme.Success).
+			Foreground(ui.CurrentTheme.FgOnSuccess).
 			Render(text)
 
 	case ipn.Stopped:
 		return buttonStyle.
-			Background(ui.Red).
-			Foreground(ui.Black).
+			Background(ui.CurrentTheme.Danger).
+			Foreground(ui.CurrentTheme.FgOnDanger).
 			Render("Not Connected")
 
 	case ipn.NoState:
 		return buttonStyle.
-			Background(ui.Blue).
-			Foreground(ui.White).
+			Background(ui.CurrentTheme.Info).
+			Foreground(ui.CurrentTheme.FgOnInfo).
 			Render("Loading...")
 	}
 
@@ -64,8 +64,8 @@ func renderStatusButton(backendState ipn.State, isUsingExitNode bool) string {
 // Render the locked out warning. Returns static output; should be called conditionally.
 func renderLockedOutWarning(m *model) string {
 	heading := lipgloss.NewStyle().
-		Background(ui.Yellow).
-		Foreground(ui.Black).
+		Background(ui.CurrentTheme.Warning).
+		Foreground(ui.CurrentTheme.FgOnWarning).
 		Bold(true).
 		Padding(0, 1).
 		Render("Warning: Locked Out")
@@ -73,7 +73,7 @@ func renderLockedOutWarning(m *model) string {
 	bodyText := "This node is locked out by tailnet lock. Please contact an administrator of your Tailscale network to authorize your connection."
 
 	lockedOutWarning := lipgloss.NewStyle().
-		Foreground(ui.Yellow).
+		Foreground(ui.CurrentTheme.Warning).
 		Width(80).
 		Align(lipgloss.Center).
 		Render(heading + "\n" + bodyText)
@@ -84,7 +84,7 @@ func renderLockedOutWarning(m *model) string {
 // Format the top header section.
 func renderHeader(m *model) string {
 	logo := lipgloss.NewStyle().
-		Foreground(ui.Primary).
+		Foreground(ui.CurrentTheme.Primary).
 		MarginRight(4).
 		Render(ui.Logo)
 
@@ -140,6 +140,24 @@ func renderHeader(m *model) string {
 	return lipgloss.JoinHorizontal(lipgloss.Center, logo, statusStr, spacer, versionsStr)
 }
 
+// renderMenuArea renders the main menu area, optionally including a picker
+// column on the right. When the picker is open and the three columns don't
+// fit in the terminal width, the main menu column is dropped to make room.
+func renderMenuArea(m *model, height int) string {
+	if m.picker == nil {
+		return m.menu.Render(height)
+	}
+
+	mainCol, subCol := m.menu.RenderColumns(height)
+	pickerCol := m.picker.render(height)
+
+	three := lipgloss.JoinHorizontal(lipgloss.Top, mainCol, subCol, pickerCol)
+	if lipgloss.Width(three) <= m.terminalWidth {
+		return three
+	}
+	return lipgloss.JoinHorizontal(lipgloss.Top, subCol, pickerCol)
+}
+
 // Render a banner/modal for the middle of the screen.
 func renderMiddleBanner(m *model, height int, text string) string {
 	divider := lipgloss.NewStyle().
@@ -167,10 +185,10 @@ func renderStatusBar(m *model) string {
 		// If there's no other status and we don't have write access, show a read-only warning.
 		text = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(ui.Yellow).
+			Foreground(ui.CurrentTheme.Warning).
 			Render("Read-only mode.")
 		text += lipgloss.NewStyle().
-			Foreground(ui.Yellow).
+			Foreground(ui.CurrentTheme.Warning).
 			Render(" To edit preferences, you may have to run tsui as root.")
 	} else if m.statusText != "" {
 		// Otherwise, there's a status message, so render it.
@@ -178,7 +196,7 @@ func renderStatusBar(m *model) string {
 
 		switch m.statusType {
 		case statusTypeError:
-			color = ui.Red
+			color = ui.CurrentTheme.Danger
 
 			text = lipgloss.NewStyle().
 				Foreground(color).
@@ -186,10 +204,10 @@ func renderStatusBar(m *model) string {
 				Render("Error: ")
 
 		case statusTypeSuccess:
-			color = ui.Green
+			color = ui.CurrentTheme.Success
 
 		case statusTypeTip:
-			color = ui.Blue
+			color = ui.CurrentTheme.Info
 
 			text = lipgloss.NewStyle().
 				Foreground(color).
@@ -238,14 +256,14 @@ func (m model) View() string {
 
 	styledAuthUrl := lipgloss.NewStyle().
 		Underline(true).
-		Foreground(ui.Blue).
+		Foreground(ui.CurrentTheme.Info).
 		Render(m.state.AuthURL)
 
 	switch m.state.BackendState {
 	case ipn.Running:
 		middle = lipgloss.NewStyle().
 			Height(middleHeight).
-			Render(m.menu.Render(middleHeight))
+			Render(renderMenuArea(&m, middleHeight))
 
 	case ipn.NeedsMachineAuth:
 		// TODO: Figure out what this state actually is so we can be helpful to the user.
